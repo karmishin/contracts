@@ -1,15 +1,29 @@
+import javax.crypto.SecretKeyFactory;
+import javax.crypto.spec.PBEKeySpec;
 import javax.swing.*;
 import java.awt.*;
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.KeySpec;
 import java.sql.*;
+import java.util.Base64;
 
 public class AuthPanel extends JPanel {
+    private Container parent;
+    private CardLayout cardLayout;
     private JLabel usernameLabel = new JLabel("Логин:");
     private JLabel passwordLabel = new JLabel("Пароль:");
     private JTextField usernameField = new JTextField(10);
     private JTextField passwordField = new JTextField(10);
     private JButton loginButton = new JButton("Войти");
 
-    public AuthPanel() {
+    public AuthPanel(Container parent) {
+        this.parent = parent;
+        this.cardLayout = (CardLayout) parent.getLayout();
+        createAndShowGUI();
+    }
+
+    private void createAndShowGUI() {
         setLayout(new GridBagLayout());
         GridBagConstraints c = new GridBagConstraints();
 
@@ -46,27 +60,47 @@ public class AuthPanel extends JPanel {
     class AuthWorker extends SwingWorker {
         Connection connection = null;
 
+        private boolean checkPassword(String dbPassword, String dbSalt) throws NoSuchAlgorithmException, InvalidKeySpecException {
+            Base64.Encoder encoder = Base64.getEncoder();
+            Base64.Decoder decoder = Base64.getDecoder();
+
+            byte[] salt = decoder.decode(dbSalt);
+            String password = dbPassword;
+
+            KeySpec spec = new PBEKeySpec(passwordField.getText().toCharArray(), salt, 65536, 128);
+            SecretKeyFactory factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
+            String hash = encoder.encodeToString(factory.generateSecret(spec).getEncoded());
+
+            return hash.equals(dbPassword);
+        }
+
         @Override
         protected Object doInBackground() {
             try {
                 connection = DriverManager.getConnection("jdbc:sqlite:praktika.db");
                 Statement statement = connection.createStatement();
                 statement.setQueryTimeout(30);
-                ResultSet rs = statement.executeQuery(
-                        "SELECT * FROM user WHERE name = '"
-                                + usernameField.getText()
-                                + "' and password = '"
-                                + passwordField.getText()
-                                + "'");
+
+                statement.executeUpdate("create table if not exists users (id integer primary key autoincrement, name text, password text, salt text, role integer, unique(id, name)); ");
+                statement.executeUpdate("insert or ignore into users values (null, 'admin', '859aIV/Jwsuojdy12ERbbg==', '99glxR8/XKldZDl6ADJl7A==', 0)");
+                ResultSet rs = statement.executeQuery("SELECT * FROM users WHERE name = '" + usernameField.getText() + "'");
 
                 if (!rs.next()) {
                     JOptionPane.showMessageDialog(null, "Неверный логин или пароль!");
                 } else {
-                    System.out.println("name=" + rs.getString("name"));
-                    System.out.println("password=" + rs.getString("password"));
+                    String password = rs.getString("password");
+                    String salt = rs.getString("salt");
+
+                    if (checkPassword(password, salt)) {
+                        System.out.println("Вход выполнен.");
+                        cardLayout.next(parent);
+                    } else {
+                        JOptionPane.showMessageDialog(null, "Неверный логин или пароль!");
+                    }
+
                 }
 
-            } catch (SQLException e) {
+            } catch (SQLException | NoSuchAlgorithmException | InvalidKeySpecException e) {
                 JOptionPane.showMessageDialog(null, e.getMessage());
             }
 

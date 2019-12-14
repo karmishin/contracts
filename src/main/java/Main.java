@@ -2,7 +2,10 @@ import javax.swing.*;
 import java.awt.*;
 import java.lang.reflect.InvocationTargetException;
 
-public class Main extends JFrame {
+import static javax.swing.WindowConstants.EXIT_ON_CLOSE;
+
+public class Main {
+    CardLayout cardLayout;
 
     public static void main(String[] args) {
         try {
@@ -13,11 +16,16 @@ public class Main extends JFrame {
     }
 
     public void create() {
-        setLayout(new CardLayout());
-        add(new AuthPanel());
+        JPanel cards = new JPanel();
+        cardLayout = new CardLayout();
+        cards.setLayout(cardLayout);
+        cards.add(new AuthPanel(cards), "Auth");
+        cards.add(new MenuPanel(cards), "Menu");
 
-        pack();
-        setDefaultCloseOperation(EXIT_ON_CLOSE);
-        setVisible(true);
+        JFrame frame = new JFrame();
+        frame.add(cards);
+        frame.setSize(500, 500);
+        frame.setDefaultCloseOperation(EXIT_ON_CLOSE);
+        frame.setVisible(true);
     }
 }

@@ -71,7 +71,7 @@ public class AuthPanel extends JPanel {
             SecretKeyFactory factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
             String hash = encoder.encodeToString(factory.generateSecret(spec).getEncoded());
 
-            return hash.equals(dbPassword);
+            return hash.equals(password);
         }
 
         @Override
@@ -86,16 +86,19 @@ public class AuthPanel extends JPanel {
                 ResultSet rs = statement.executeQuery("SELECT * FROM users WHERE name = '" + usernameField.getText() + "'");
 
                 if (!rs.next()) {
-                    JOptionPane.showMessageDialog(null, "Неверный логин или пароль!");
+                    JOptionPane.showMessageDialog(parent, "Неверный логин или пароль!");
                 } else {
                     String password = rs.getString("password");
                     String salt = rs.getString("salt");
 
                     if (checkPassword(password, salt)) {
+                        Main.currentUserName = rs.getString("name");
+                        Main.currentUserRole = rs.getInt("role");
+                        parent.add(new MenuPanel(parent), "Menu");
                         System.out.println("Вход выполнен.");
                         cardLayout.next(parent);
                     } else {
-                        JOptionPane.showMessageDialog(null, "Неверный логин или пароль!");
+                        JOptionPane.showMessageDialog(parent, "Неверный логин или пароль!");
                     }
 
                 }

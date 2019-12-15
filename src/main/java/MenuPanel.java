@@ -34,6 +34,7 @@ public class MenuPanel extends JPanel {
         c.gridx = 0;
         c.gridy = 2;
         contractsButton.addActionListener(e -> {
+            parent.add(new ContractsPanel(parent), "Contracts");
             cardLayout.show(parent, "Contracts");
         });
         add(contractsButton, c);

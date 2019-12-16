@@ -9,6 +9,9 @@ public class ContractsPanel extends JPanel {
     CardLayout cardLayout;
     Vector<String> columnNames = new Vector<>(Arrays.asList(new String[]{"ID", "Компания", "Дата", "Лицевой счёт", "Сумма"}));
     Vector<Vector<Object>> data = new Vector<>();
+    JTable table;
+    JButton backButton = new JButton("<< Вернуться");
+    JButton deleteButton = new JButton("Удалить");
 
     public ContractsPanel(Container parent) {
         this.parent = parent;
@@ -17,16 +20,28 @@ public class ContractsPanel extends JPanel {
     }
 
     private void createAndShowGUI() {
-        ContractsWorker contractsWorker = new ContractsWorker();
-        contractsWorker.execute();
-        JTable table = new JTable(data, columnNames);
+        SelectWorker selectWorker = new SelectWorker();
+        selectWorker.execute();
+        table = new JTable(data, columnNames);
         JScrollPane scrollPane = new JScrollPane(table);
         table.setFillsViewportHeight(true);
         add(scrollPane);
+
+        backButton.addActionListener(e -> {
+            cardLayout.previous(parent);
+        });
+        add(backButton);
+
+        deleteButton.addActionListener(e -> {
+            if (table.getSelectedRow() != -1) {
+                DeleteWorker deleteWorker = new DeleteWorker();
+                deleteWorker.execute();
+            }
+        });
+        add(deleteButton);
     }
 
-    class ContractsWorker extends SwingWorker {
-
+    class SelectWorker extends SwingWorker {
         private Connection connection = null;
 
         @Override
@@ -48,6 +63,30 @@ public class ContractsPanel extends JPanel {
                 }
                 System.out.println("Загружено " + i + " контрактов.");
 
+            } catch (SQLException e) {
+                JOptionPane.showMessageDialog(parent, e.getMessage());
+            } finally {
+                connection.close();
+            }
+
+            return null;
+        }
+    }
+
+    class DeleteWorker extends SwingWorker {
+
+        @Override
+        protected Object doInBackground() throws SQLException {
+            Connection connection = null;
+
+            try {
+                int selectedRow = table.getSelectedRow();
+
+                connection = DriverManager.getConnection("jdbc:sqlite:praktika.db");
+                Statement statement = connection.createStatement();
+                statement.setQueryTimeout(30);
+                statement.executeUpdate("DELETE FROM contracts WHERE id=" + (selectedRow + 1));
+                table.removeRowSelectionInterval(selectedRow, selectedRow);
             } catch (SQLException e) {
                 JOptionPane.showMessageDialog(parent, e.getMessage());
             } finally {

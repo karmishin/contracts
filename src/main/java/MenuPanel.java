@@ -27,7 +27,9 @@ public class MenuPanel extends JPanel {
         c.gridx = 0;
         c.gridy = 1;
         ordersButton.addActionListener(e -> {
-            cardLayout.show(parent, "Orders");
+            // TODO
+            // cardLayout.show(parent, "Orders");
+            JOptionPane.showMessageDialog(parent, "Этот раздел пока что не работает, зайдите как-нибудь попозже.");
         });
         add(ordersButton, c);
 

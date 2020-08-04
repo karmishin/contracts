@@ -9,13 +9,13 @@ import java.sql.*;
 import java.util.Base64;
 
 public class AuthPanel extends JPanel {
-    private Container parent;
-    private CardLayout cardLayout;
-    private JLabel usernameLabel = new JLabel("Логин:");
-    private JLabel passwordLabel = new JLabel("Пароль:");
-    private JTextField usernameField = new JTextField(10);
-    private JTextField passwordField = new JTextField(10);
-    private JButton loginButton = new JButton("Войти");
+    private final Container parent;
+    private final CardLayout cardLayout;
+    private final JLabel usernameLabel = new JLabel("Логин:");
+    private final JLabel passwordLabel = new JLabel("Пароль:");
+    private final JTextField usernameField = new JTextField(10);
+    private final JTextField passwordField = new JTextField(10);
+    private final JButton loginButton = new JButton("Войти");
 
     public AuthPanel(Container parent) {
         this.parent = parent;
@@ -49,10 +49,7 @@ public class AuthPanel extends JPanel {
         c.gridwidth = 2;
         add(loginButton, c);
 
-        loginButton.addActionListener(e -> {
-            AuthWorker authWorker = new AuthWorker();
-            authWorker.execute();
-        });
+        loginButton.addActionListener(e -> new AuthWorker().execute());
 
         setVisible(true);
     }
@@ -65,46 +62,40 @@ public class AuthPanel extends JPanel {
             Base64.Decoder decoder = Base64.getDecoder();
 
             byte[] salt = decoder.decode(dbSalt);
-            String password = dbPassword;
 
             KeySpec spec = new PBEKeySpec(passwordField.getText().toCharArray(), salt, 65536, 128);
             SecretKeyFactory factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
             String hash = encoder.encodeToString(factory.generateSecret(spec).getEncoded());
 
-            return hash.equals(password);
+            return hash.equals(dbPassword);
         }
 
         @Override
-        protected Object doInBackground() {
+        protected Object doInBackground() throws SQLException {
             try {
                 connection = DriverManager.getConnection("jdbc:sqlite:praktika.db");
                 Statement statement = connection.createStatement();
                 statement.setQueryTimeout(30);
 
-                statement.executeUpdate("create table if not exists users (id integer primary key autoincrement, name text, password text, salt text, role integer, unique(id, name)); ");
-                statement.executeUpdate("insert or ignore into users values (null, 'admin', '859aIV/Jwsuojdy12ERbbg==', '99glxR8/XKldZDl6ADJl7A==', 0)");
+                // логин: admin, пароль: 1234
+                statement.executeUpdate("create table if not exists users (id integer primary key autoincrement, name text unique, password text, salt text, role integer); ");
+                statement.executeUpdate("insert or ignore into users values (null, 'admin', 'CmfAFCruDmLrggf9bTPaUg==', '99glxR8/XKldZDl6ADJl7A==', 0)");
                 ResultSet rs = statement.executeQuery("SELECT * FROM users WHERE name = '" + usernameField.getText() + "'");
 
-                if (!rs.next()) {
-                    JOptionPane.showMessageDialog(parent, "Неверный логин или пароль!");
+                if (rs.next() && checkPassword(rs.getString("password"), rs.getString("salt"))) {
+                    Main.currentUserName = rs.getString("name");
+                    Main.currentUserRole = rs.getInt("role");
+                    parent.add(new MenuPanel(parent), "Menu");
+                    System.out.println("Вход выполнен.");
+                    cardLayout.next(parent);
                 } else {
-                    String password = rs.getString("password");
-                    String salt = rs.getString("salt");
-
-                    if (checkPassword(password, salt)) {
-                        Main.currentUserName = rs.getString("name");
-                        Main.currentUserRole = rs.getInt("role");
-                        parent.add(new MenuPanel(parent), "Menu");
-                        System.out.println("Вход выполнен.");
-                        cardLayout.next(parent);
-                    } else {
-                        JOptionPane.showMessageDialog(parent, "Неверный логин или пароль!");
-                    }
-
+                    JOptionPane.showMessageDialog(parent, "Неправильно введён логин или пароль");
                 }
 
             } catch (SQLException | NoSuchAlgorithmException | InvalidKeySpecException e) {
                 JOptionPane.showMessageDialog(null, e.getMessage());
+            } finally {
+                connection.close();
             }
 
             return null;
